@@ -7,7 +7,7 @@ public class GeoNames
 {
     public string PostalCode { get; set; }
     public string CityName { get; set; }
-    public string RegionName { get; set; }
+    public string RegionNameDE { get; set; }
 
     public GeoNames() { }
 
@@ -15,18 +15,18 @@ public class GeoNames
     {
         PostalCode = postalCode;
         CityName = cityName;
-        RegionName = regionName;
+        RegionNameDE = regionName;
     }
 }
 
 public static class GeoNamesData
 {
-    public static List<GeoNames> GeoNames;
+    public static List<GeoNames> GeoNamesList;
 
     static GeoNamesData()
     {
         // Ініціалізація даних при запуску
-        GeoNames = LoadData(Path.Combine(Directory.GetCurrentDirectory(), "Files", "GeoNamesDE.txt"));
+        GeoNamesList = LoadData(Path.Combine(Directory.GetCurrentDirectory(), "Files", "GeoNamesDE.txt"));
     }
 
     private static List<GeoNames> LoadData(string filePath)
@@ -40,9 +40,9 @@ public static class GeoNamesData
             {
                 data.Add(new GeoNames
                 {
-                    PostalCode = columns[0].Trim().ToUpper(),
-                    CityName = columns[1].Trim().ToUpper(),
-                    RegionName = columns[2].Trim().ToUpper(),
+                    PostalCode = columns[1].Trim().ToUpper(),
+                    CityName = columns[2].Trim().ToUpper(),
+                    RegionNameDE = columns[3].Trim().ToUpper(),
                 });
             }
         }

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Text.RegularExpressions;
 
 public class Address
@@ -79,18 +80,37 @@ public class Address
             // Вулиця - це все, що передує поштовому індексу
             int postalCodeIndex = postalCodeMatch.Index;
             Street = normalizedAddress.Substring(0, postalCodeIndex).Trim();
+            if (string.IsNullOrEmpty(Street))
+            {
+                Street = normalizedAddress.Substring(postalCodeIndex + PostalCode.Length).Trim();
+            }
 
-            // Місто - це все, що залишилось після поштового індексу
-            City = normalizedAddress.Substring(postalCodeIndex + PostalCode.Length).Trim();
+            //Пошук міста по індексу поки лише для Німеччини
+            var geoObject = GeoNamesData.GeoNamesList.Where(g => g.PostalCode == PostalCode).OrderBy(g => g.CityName.Length).FirstOrDefault();
+            City = geoObject?.CityName ?? City;
+            if (!string.IsNullOrEmpty(Street) && geoObject != null)
+            {
+                Street = Street.Replace(geoObject.RegionNameDE, "", StringComparison.OrdinalIgnoreCase);
+            }
         }
         else
         {
             // Якщо поштовий індекс не знайдено, все після видалення країни вважається містом
             City = normalizedAddress.Trim();
+            var cityNames = GeoNamesData.GeoNamesList.Select(g => g.CityName).Distinct().ToList();
+            var matchingCity = cityNames.FirstOrDefault(cityName => City.IndexOf(cityName, StringComparison.OrdinalIgnoreCase) >= 0);
+            if (matchingCity != null)
+            {
+                Street = City;
+                City = matchingCity;
+            }
         }
 
-        // Очищаємо залишок міста від ком, пробілів тощо
-        City = City.Trim(',').Trim();
+        if (!string.IsNullOrEmpty(Street) && !string.IsNullOrEmpty(City))
+        {
+            Street = Street.Replace(City, "", StringComparison.OrdinalIgnoreCase);
+            Street = Regex.Replace(Street, @"\s+", " ").Trim(); // Видаляємо зайві пробіли
+        }
     }
     private void SplitStreetAndCity(string streetAndCity)
     {
@@ -154,10 +174,7 @@ public class Address
             { "ВЮРТ", "WURTH " },
             { "DELKENHEIM", " " },
             { "DELKENHEIMGERMANY", "DELKENHEIM GERMANY " },
-            { "NIEDERSACHSEN", " " },
             { "BUNDESLAND", " " },
-            { " BAVARIA", " " },
-            { "BAYERN", " " },
             { "STATE", " " },
             { "ГАСТЕ", " " },
 
@@ -165,6 +182,7 @@ public class Address
             { "ВУЛ.", " " },
             { "(", "" },
             { ")", "" },
+            { " BAVARIA ", " " },
             { "«", "" },
             { "»", "" },
             { "& ", "&" },

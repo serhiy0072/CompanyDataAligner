@@ -48,26 +48,21 @@ public class Address
         string normalizedAddress = CorrectCommonMistakes(fullAddress.ToUpper().Replace(",", " ").Trim()).Replace("-", " ").Replace(".", " ");
         normalizedAddress = Regex.Replace(normalizedAddress, @"\s+", " ").Trim(); // Видаляємо зайві пробіли
 
-        // Знайдемо країну. Пошук країни в будь-якому місці адреси
-        foreach (var entry in CountryTranslations)
+        // Знайдемо країну
+        Country = CountryTranslations
+            .FirstOrDefault(entry => normalizedAddress.Contains(entry.Key, StringComparison.OrdinalIgnoreCase))
+            .Value ?? GetCountryById(countryId);
+
+        // Видаляємо всі входження назви країни з адреси
+        if (!string.IsNullOrEmpty(Country))
         {
-            if (normalizedAddress.IndexOf(entry.Key, StringComparison.OrdinalIgnoreCase) >= 0)
+            foreach (var entry in CountryTranslations.Where(entry => entry.Value == Country))
             {
-                if (string.IsNullOrEmpty(Country))
-                {
-                    Country = entry.Value;
-                }
-                // Видаляємо всі входження назви країни з адреси
+                // Поки є входження назви країни, замінюємо їх на порожній рядок
                 while (normalizedAddress.IndexOf(entry.Key, StringComparison.OrdinalIgnoreCase) >= 0)
                 {
-                    normalizedAddress = normalizedAddress.Replace(entry.Key, string.Empty).Trim();
-                    normalizedAddress = Regex.Replace(normalizedAddress, @"\s+", " ").Trim(); // Видаляємо зайві пробіли після видалення країни
+                    normalizedAddress = normalizedAddress.Replace(entry.Key, string.Empty, StringComparison.OrdinalIgnoreCase).Trim();
                 }
-            }
-            // Якщо країна не знайдена, використовуємо CountryId для її визначення
-            if (string.IsNullOrEmpty(Country) && !string.IsNullOrEmpty(countryId))
-            {
-                Country = GetCountryById(countryId);
             }
         }
 
@@ -78,12 +73,11 @@ public class Address
             PostalCode = postalCodeMatch.Value;
 
             // Вулиця - це все, що передує поштовому індексу
-            int postalCodeIndex = postalCodeMatch.Index;
-            Street = normalizedAddress.Substring(0, postalCodeIndex).Trim();
-            if (string.IsNullOrEmpty(Street))
-            {
-                Street = normalizedAddress.Substring(postalCodeIndex + PostalCode.Length).Trim();
-            }
+            Street = normalizedAddress.Substring(0, postalCodeMatch.Index).Trim();
+            // Якщо вулиця не знайдена, вважаємо, що вулиця - це все, що за поштовим індексом
+            Street = string.IsNullOrEmpty(Street)
+                ? normalizedAddress.Substring(postalCodeMatch.Index + PostalCode.Length).Trim()
+                : Street;
 
             //Пошук міста по індексу поки лише для Німеччини
             var geoObject = GeoNamesData.GeoNamesList.Where(g => g.PostalCode == PostalCode).OrderBy(g => g.CityName.Length).FirstOrDefault();
@@ -97,8 +91,10 @@ public class Address
         {
             // Якщо поштовий індекс не знайдено, все після видалення країни вважається містом
             City = normalizedAddress.Trim();
-            var cityNames = GeoNamesData.GeoNamesList.Select(g => g.CityName).Distinct().ToList();
-            var matchingCity = cityNames.FirstOrDefault(cityName => City.IndexOf(cityName, StringComparison.OrdinalIgnoreCase) >= 0);
+            var matchingCity = GeoNamesData.GeoNamesList
+                .Select(g => g.CityName)
+                .FirstOrDefault(cityName => City.Contains(cityName, StringComparison.OrdinalIgnoreCase));
+
             if (matchingCity != null)
             {
                 Street = City;
@@ -112,32 +108,17 @@ public class Address
             Street = Regex.Replace(Street, @"\s+", " ").Trim(); // Видаляємо зайві пробіли
         }
     }
-    private void SplitStreetAndCity(string streetAndCity)
-    {
-        var lastSpaceIndex = streetAndCity.LastIndexOf(' ');
-        if (lastSpaceIndex > 0)
-        {
-            Street = streetAndCity.Substring(0, lastSpaceIndex).Trim();
-            City = streetAndCity.Substring(lastSpaceIndex + 1).Trim();
-        }
-        else
-        {
-            Street = streetAndCity;
-            City = string.Empty;
-        }
-    }
     private string GetCountryById(string countryId)
     {
         // Створення словника CountryId -> Country Name
         var countryMap = new Dictionary<string, string>
-    {
-        { "276", "GERMANY" },
-        { "840", "USA" },
-        { "250", "FRANCE" },
-        { "380", "ITALY" },
-        // Додайте інші коди країн за потребою
-    };
-
+        {
+            { "276", "GERMANY" },
+            { "840", "USA" },
+            { "250", "FRANCE" },
+            { "380", "ITALY" },
+            // Додайте інші коди країн за потребою
+        };
         return countryMap.TryGetValue(countryId, out var countryName) ? countryName : "GERMANY";
     }
 
@@ -200,7 +181,6 @@ public class Address
             input = input.Replace(correction.Key, correction.Value);
             input = Regex.Replace(input, @"\s+", " ");
         }
-
         return input;
     }
 
@@ -227,7 +207,7 @@ public class Address
 
     public override string ToString()
     {
-        var parts = new List<string> { Street, PostalCode, City, Country };
+        var parts = new List<string> { $"str. {Street}", $"postCode: {PostalCode}", $"City: {City}", $"country: {Country}" };
         return string.Join(", ", parts.Where(p => !string.IsNullOrEmpty(p)));
     }
 }

@@ -8,6 +8,8 @@ using ConsoleApp1;
 using System.Text;
 using OfficeOpenXml.Style;
 using System.Drawing;
+using System.Diagnostics;
+using System.Collections.Concurrent;
 
 class Program
 {
@@ -28,14 +30,13 @@ class Program
 
         // Зчитуємо дані з обох файлів і заповнюємо список об'єктів Company
         var companies = ProcessMainData(mainFilePath, legalFormsFilePath);
-
+        
         // Зчитуємо дані з обох файлів і заповнюємо список об'єктів Company
         var groupedCompanies = GroupUniqueCompanies(companies);
-
+        
         // Записуємо оброблені дані у новий файл Excel
         WriteToExcelFile(resultFilePath, groupedCompanies);
         //WriteToExcelFile(deletedFilePath, delitedCompanies);
-
         Console.WriteLine($"Результати збережено у файл: {resultFilePath}");
     }
 
@@ -43,32 +44,33 @@ class Program
     {
         var mainData = LoadExcelFile(mainFilePath);
         var legalFormsData = LoadExcelFile(legalFormsFilePath);
-        var companies = new List<Company>();
+        var companies = new ConcurrentBag<Company>();
 
-        foreach (var row in mainData)
+        // Паралельна обробка рядків
+        Parallel.ForEach(mainData, row =>
         {
             string name = row.Count > 0 ? row[0] : string.Empty;
             string address = row.Count > 2 ? row[2] : string.Empty;
             string countryId = row.Count > 4 ? row[4] : "0";
 
             // Створюємо об'єкт компанії
-            var company = new Company(name, address, countryId); 
-            
+            var company = new Company(name, address, countryId);
             company.FindLegalForm(legalFormsData);
-            company.Address = new Address(address, countryId); 
 
+            // Додаємо компанію до списку
             companies.Add(company);
-        }
+        });
 
-        return companies;
+        return companies.ToList(); // Повертаємо результат як List<Company>
     }
 
     static List<Company> GroupUniqueCompanies(List<Company> companies)
     {
         return companies
-            .GroupBy(c => new { c.UniqueName, FirmAddress = c.Address?.ToString() ?? string.Empty })//, LegalFormShortName = c.LegalForm?.ShortName ?? string.Empty
-            .Select(g => g.First())
-            .ToList();
+                .GroupBy(c => new { c.UniqueName, FirmAddress = c.Address?.ToString() ?? string.Empty })
+                .Select(g => g.First())
+                .OrderBy(c => c.UniqueName)  // Додаємо сортування по UniqueName за зростанням
+                .ToList();
     }
 
     static void WriteToExcelFile(string filePath, List<Company> companies)
@@ -108,12 +110,6 @@ class Program
                 worksheet.Cells[i + 2, 8].Value = company.LegalForm?.NameEN;
             }
 
-            //SetColumnColorToYellow(worksheet, 2);
-            //SetColumnColorToYellow(worksheet, 4);
-            //SetColumnColorToYellow(worksheet, 6);
-            //SetColumnColorToYellow(worksheet, 7);
-            //SetColumnColorToYellow(worksheet, 8);
-
             // Зберігаємо пакет в файл
             package.SaveAs(new FileInfo(filePath));
         }
@@ -141,14 +137,5 @@ class Program
             }
         }
         return data;
-    }
-    public static void SetColumnColorToYellow(ExcelWorksheet worksheet, int columnIndex)
-    {
-        // Встановлюємо жовтий колір для всієї колонки
-        using (var range = worksheet.Cells[1, columnIndex, worksheet.Dimension.End.Row, columnIndex])
-        {
-            range.Style.Fill.PatternType = ExcelFillStyle.Solid;
-            range.Style.Fill.BackgroundColor.SetColor(Color.Yellow);
-        }
     }
 }

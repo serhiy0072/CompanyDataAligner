@@ -58,7 +58,7 @@ namespace ConsoleApp1
                 }
             }
             LegalForm = bestMatch;
-            UniqueName = ExtractUniqueName(FullName, bestMatch);
+            UniqueName = ExtractUniqueName(FullName, bestMatch).Trim(',','&','.').Trim();
         }
 
         private string ExtractUniqueName(string name, LegalForm form)
@@ -92,8 +92,6 @@ namespace ConsoleApp1
             { " .", "." },
             { ". ", "." },
             { "+", "&" },
-            { " AND", "&" },
-            { " AND ", "&" },
             { "& ", "&" },
             { " &", "&" },
             { "-", " " },
@@ -102,6 +100,7 @@ namespace ConsoleApp1
             { "(", "" },
             { ")", "" },
             { "¬", "" },
+            { "Ё", "Е" },
             { "`", "" },
             { ",", "" },
             { ",,", "" },

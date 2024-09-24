@@ -25,27 +25,53 @@ public static class GeoNamesData
 
     static GeoNamesData()
     {
-        // Ініціалізація даних при запуску
-        GeoNamesList = LoadData(Path.Combine(Directory.GetCurrentDirectory(), "Files", "GeoNamesDE.txt"));
+        try
+        {
+            // Ініціалізація даних при запуску
+            GeoNamesList = LoadData(Path.Combine(Directory.GetCurrentDirectory(), "Files", "GeoNamesDE.txt"));
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Помилка завантаження даних: {ex.Message}");
+        }
     }
 
-    private static List<GeoNames> LoadData(string filePath)
+        private static List<GeoNames> LoadData(string filePath)
     {
         var data = new List<GeoNames>();
 
-        foreach (var line in File.ReadLines(filePath))
+        try
         {
-            var columns = line.Split('\t');
-            if (columns.Length >= 3) // 3 стовпці: поштовий код, місто, регіон
+            foreach (var line in File.ReadLines(filePath))
             {
-                data.Add(new GeoNames
+                var columns = line.Split('\t');
+                if (columns.Length >= 3) // 3 стовпці: поштовий код, місто, регіон
                 {
-                    PostalCode = columns[1].Trim().ToUpper(),
-                    CityName = columns[2].Trim().ToUpper(),
-                    RegionNameDE = columns[3].Trim().ToUpper(),
-                });
+                    try
+                    {
+                        data.Add(new GeoNames
+                        {
+                            PostalCode = columns[1].Trim().ToUpper(),
+                            CityName = columns[2].Trim().ToUpper(),
+                            RegionNameDE = columns[3].Trim().ToUpper(),
+                        });
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"Помилка під час обробки рядка: {ex.Message}");
+                    }
+                }
             }
         }
+        catch (FileNotFoundException ex)
+        {
+            Console.WriteLine($"Файл не знайдено: {ex.Message}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Помилка під час читання файлу: {ex.Message}");
+        }
+
         return data;
     }
 }

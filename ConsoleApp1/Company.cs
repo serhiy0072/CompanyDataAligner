@@ -11,119 +11,128 @@ namespace ConsoleApp1
     public class Company
     {
         #region Properties
-        public int Id { get; set; }
-        public string? CountryId { get; set; }
-        public string? FullName { get; set; }
+        public int Id { get; private set; }
+        public string? CountryId { get; private set; }
+        public string? FullName { get; private set; }
         public string? UniqueName { get; set; }
-        public Address Address { get; set; }
+        public Address Address { get; private set; }
         public LegalForm? LegalForm { get; set; }
         #endregion
         #region Constructors 
         public Company(string name, string fullAddress, string countryId)
         {
-            FullName = CorrectCommonMistakes(NormalizeName(name));
+            FullName = name;
+            UniqueName = CorrectCommonMistakes(NormalizeName(name));
             Address = new Address(fullAddress, countryId);
             CountryId = countryId;
         }
         #endregion
         #region Methods
-        public void FindLegalForm(List<List<string>> legalFormsData)
+
+        static string NormalizeName(string input)
         {
-            LegalForm? bestMatch = null;
-            int longestMatchLength = 0;
-
-            // Сортуємо форми за довжиною у порядку спадання, щоб довші форми перевірялися першими
-            var sortedLegalFormsData = legalFormsData.OrderByDescending(row => row[0].Length).ToList();
-
-            foreach (var row in sortedLegalFormsData)
+            Dictionary<string, string> corrections = new Dictionary<string, string>
             {
-                string shortForm = row.Count > 0 ? row[0].ToUpper().Replace(" ", "") : string.Empty;//
-                string ukrainianName = row.Count > 1 ? row[1].ToUpper() : string.Empty;
-                string englishName = row.Count > 2 ? row[2].ToUpper() : string.Empty;
+                { "&", " & " },
+                { "\"", " " },
+                { "\'", " " },
+                { ".", " " },
+                { "+", " " },
+                { "-", " " },
+                { "”", " " },
+                { "“", " " },
+                { "(", " " },
+                { ")", " " },
+                { "¬", " " },
+                { "`", " " },
+                { ",", " " },
+                { ",,", " " },
+                { "...", " " },
+                { "<", " " },
+                { ">", " " },
+                { "«", " " },
+                { "»", " " },
+                { "  ", " " },
+                { "КОМПАНІЯ", " " },
+                { "КОМПАНИЯ", " " },
+                { "ФІРМА", " " },
+                { "Г М Б Х", "GMBH" },
+                { "ГМБХ&КО.КГ", "GMBH&CO.KG" },
+                { "ГМБ&КГ", "GMBH&CO.KG" },
+                { "ГМБ & КО КГ", "GMBH&CO.KG" },
+                { "ГМБГ І КО", "GMBH&CO.KG" },
+                { "ГМБГ ТА КО КГ", "GMBH&CO.KG" },
+                { "ҐМБГ І КО КҐ", "GMBH&CO.KG" },
+                { "ҐМБХ І КО КҐ", "GMBH&CO.KG" },
+                { "GMBH AND CO KG", "GMBH&CO.KG" },
+                { "GMBH UND CO KG", "GMBH&CO.KG" },
+                { "GMBH & CO KG", "GMBH&CO.KG" },
+                { "GMBH & КО КГ", "GMBH&CO.KG" },
+                { "GMBH І СО КГ", "GMBH&CO.KG" },
+                { "GMBH І КО КГ", "GMBH&CO.KG" },
+                { "GMBH ЕНД КО КГ", "GMBH&CO.KG" },
+                { "GMBH CO KG", "GMBH&CO.KG" },
+                { "GMBH КО КГ", "GMBH&CO.KG" },
+                { "CЕ ЕНД КО КГ", "SE&CO.KG" },
+                { "АКЦІОНЕРНЕ ТОВАРИСТВО", "GMBH" },
+                { "АКЦІОНЕОНЕРНЕ ТВАРИСТВО", "GMBH" },
+                { "АСCОЦІАЦІЯ", "E.V." },
+                // Додайте інші типові заміни тут
+           };
+            // Видаляємо лапки, зайві пробіли та символи
 
-                // Перевіряємо, чи містить назва компанії цю форму
-                if (!string.IsNullOrEmpty(shortForm) && FullName.Contains(shortForm))
-                {
-                    // Якщо знайдений збіг довший за поточний найдовший збіг, оновлюємо bestMatch
-                    if (shortForm.Length > longestMatchLength)
-                    {
-                        longestMatchLength = shortForm.Length;
-                        bestMatch = new LegalForm
-                        {
-                            ShortName = shortForm,
-                            NameUA = ukrainianName,
-                            NameEN = englishName
-                        };
-                    }
-                }
-            }
-            LegalForm = bestMatch;
-            UniqueName = ExtractUniqueName(FullName, bestMatch).Trim(',','&','.').Trim();
-        }
-
-        private string ExtractUniqueName(string name, LegalForm form)
-        {
-            if (form?.ShortName == null)
+            string normalized = input.Trim();
+            foreach (var correction in corrections)
             {
-                return name.Trim(); // Якщо форма або ShortName null, повертаємо оригінальне ім'я
+                normalized = normalized.Replace(correction.Key, correction.Value);
             }
-
-            return name.Replace(form.ShortName, "").Trim();
-        }
-        static string NormalizeName(string name)
-        {
-            // Видаляємо лапки, зайві пробіли та символи, приводимо до верхнього регістру
-            string normalized = name.ToUpper().Replace("\"", "").Replace("\'", "").Replace("КОМПАНІЯ", "").Replace("ФІРМА", "").Replace("+", "&").Trim();
-            normalized = Regex.Replace(normalized, @"\s+", " "); // Видаляємо зайві пробіли
+            normalized = Regex.Replace(normalized, @"(?<=[a-zA-Z])(?=\d)|(?<=\d)(?=[a-zA-Z])", " ");
             return normalized;
         }
         static string CorrectCommonMistakes(string input)
         {
             // Виправляємо типові помилки
             Dictionary<string, string> corrections = new Dictionary<string, string>
-        {
-            { "INC.", "INC" },
-            { "LTD.", "LTD" },
-            { "GMBX", "GMBH" },
-            { "GMDX", "GMBH" },
-            { "ГМБХ", "GMBH" },
-            { "CO KG", "CO.KG" },
-            { "CO.CG", "CO.KG" },
-            { " .", "." },
-            { ". ", "." },
-            { "+", "&" },
-            { "& ", "&" },
-            { " &", "&" },
-            { "-", " " },
-            { "”", "" },
-            { "“", "" },
-            { "(", "" },
-            { ")", "" },
-            { "¬", "" },
-            { "Ё", "Е" },
-            { "`", "" },
-            { ",", "" },
-            { ",,", "" },
-            { "...", "" },
-            { "<", "" },
-            { ">", "" },
-            { "«", "" },
-            { "»", "" },
-            // Додайте інші типові заміни тут
-        };
+            {
+                
+                { "CMBH", "GMBH" },
+                { "GMBX", "GMBH" },
+                { "GMBY", "GMBH" },
+                { "GMHB", "GMBH" },
+                { "GMBD", "GMBH" },
+                { "GMDX", "GMBH" },
+                { "GMDH", "GMBH" },
+                { "ГМБХ", "GMBH" },
+                { "ГМБГ", "GMBH" },
+                { "ГХБХ", "GMBH" },
+                { "ТОВ", "GMBH" },
+                { "АТ", "GMBH" },
+                { "LLC", "GMBH" },
+                { "INC", "" },
+                { "МБХ", "MBH" },
+                { "МБГ", "MBH" },
+                { "УГ", "UG" },
+                { "АГ", "AG" },
+                { "КГ", "KG" },
+                // Додайте інші типові заміни тут
+            };
 
             foreach (var correction in corrections)
             {
-                input = input.Replace(correction.Key, correction.Value);
+                //Замінюємо помилкові слова, якщо вони є окремими словами
+                input = Regex.Replace(input, $@"\b{Regex.Escape(correction.Key)}\b", correction.Value);
             }
 
+            input = Regex.Replace(input, @"\s+", " ").Trim(); // Видаляємо зайві пробіли
             return input;
         }
 
         public override string ToString()
         {
             return $"{UniqueName}, {LegalForm?.ShortName}, {Address.ToString()}";
-        } // Перевизначаємо метод Equals для порівняння компаній за UniqueName, LegalForm.ShortName і Address
+        } 
+        
+        // Перевизначаємо метод Equals для порівняння компаній за UniqueName, LegalForm.ShortName і Address
         public override bool Equals(object obj)
         {
             if (obj is Company other)

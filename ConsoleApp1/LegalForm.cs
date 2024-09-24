@@ -23,6 +23,9 @@ namespace ConsoleApp1
             }
             return false;
         }
-
+        public override int GetHashCode()
+        {
+            return HashCode.Combine(ShortName?.ToUpperInvariant(), CountryId?.ToUpperInvariant());
+        }
     }
 }

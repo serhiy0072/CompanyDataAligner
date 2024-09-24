@@ -12,9 +12,9 @@ public static class ExcelWriter
                 var worksheet = package.Workbook.Worksheets.Add("Processed Data");
 
                 worksheet.Column(1).Width = 30;
-                worksheet.Column(2).Width = 20;
-                worksheet.Column(3).Width = 30;
-                worksheet.Column(4).Width = 30;
+                worksheet.Column(2).Width = 30;
+                worksheet.Column(3).Width = 50;
+                worksheet.Column(4).Width = 50;
                 worksheet.Column(5).Width = 15;
                 worksheet.Column(6).Width = 15;
                 worksheet.Column(7).Width = 25;
@@ -29,17 +29,20 @@ public static class ExcelWriter
                 worksheet.Cells[1, 7].Value = "Ukrainian OPF";
                 worksheet.Cells[1, 8].Value = "English OPF";
 
-                for (int i = 0; i < companies.Count; i++)
+                for (int i = 0, row=2; i < companies.Count; i++)
                 {
                     var company = companies[i];
-                    worksheet.Cells[i + 2, 1].Value = company.FullName;
-                    worksheet.Cells[i + 2, 2].Value = company.UniqueName;
-                    worksheet.Cells[i + 2, 3].Value = company.Address?.OriginalAddress;
-                    worksheet.Cells[i + 2, 4].Value = company.Address?.ToString();
-                    worksheet.Cells[i + 2, 5].Value = company.CountryId;
-                    worksheet.Cells[i + 2, 6].Value = company.LegalForm?.ShortName;
-                    worksheet.Cells[i + 2, 7].Value = company.LegalForm?.NameUA;
-                    worksheet.Cells[i + 2, 8].Value = company.LegalForm?.NameEN;
+
+                    worksheet.Cells[row, 1].Value = company.FullName;
+                    worksheet.Cells[row, 2].Value = company.UniqueName;
+                    worksheet.Cells[row, 3].Value = company.Address?.OriginalAddress;
+                    worksheet.Cells[row, 4].Value = company.Address?.ToString();
+                    worksheet.Cells[row, 5].Value = company.CountryId;
+                    worksheet.Cells[row, 6].Value = company.LegalForm?.ShortName;
+                    worksheet.Cells[row, 7].Value = company.LegalForm?.NameUA;
+                    worksheet.Cells[row, 8].Value = company.LegalForm?.NameEN;
+
+                    row++;
                 }
 
                 // Зберігаємо файл
@@ -49,6 +52,10 @@ public static class ExcelWriter
         catch (UnauthorizedAccessException ex)
         {
             Console.WriteLine($"Помилка доступу до файлу: {ex.Message}");
+        }
+        catch (IOException ex)
+        {
+            Console.WriteLine($"Помилка вводу-виводу: {ex.Message}");
         }
         catch (Exception ex)
         {

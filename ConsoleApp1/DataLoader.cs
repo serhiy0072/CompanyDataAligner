@@ -14,9 +14,11 @@ public static class DataLoader
 
             for (int row = 2; row <= rowCount; row++) // Починаємо з 2-го рядка, пропускаючи заголовки
             {
-                string name = worksheet.Cells[row, 1].Text?.Trim() ?? string.Empty;
-                string address = worksheet.Cells[row, 3].Text?.Trim() ?? string.Empty;
+                string name = worksheet.Cells[row, 1].Text?.ToUpper().Trim() ?? string.Empty;
+                string address = worksheet.Cells[row, 3].Text?.ToUpper().Trim() ?? string.Empty;
                 string countryId = worksheet.Cells[row, 5].Text?.Trim() ?? "0";
+
+                //if (string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(address)) continue;
 
                 var company = new Company(name, address, countryId);
                 companies.Add(company);

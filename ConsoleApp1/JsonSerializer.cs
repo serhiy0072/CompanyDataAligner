@@ -1,22 +1,40 @@
-﻿    using System.Collections.Generic;
-using System.IO;
-using System.Xml;
-using Newtonsoft.Json;
+﻿using Newtonsoft.Json;
 
-public class JsonSerializer
+namespace ConsoleApp1
 {
-    // Збереження розмічених даних у форматі JSON
-    public static void SaveAnnotationsAsJson(List<AnnotatedSentence> annotatedData, string filePath)
+    public class JsonSerializer
     {
-        var json = JsonConvert.SerializeObject(annotatedData, Newtonsoft.Json.Formatting.Indented);
-        try
+        // Збереження розмічених даних у форматі JSON
+        public static void SaveAnnotationsAsJson(List<AnnotatedSentence> annotatedData, string filePath)
         {
-            File.WriteAllText(filePath, json);
-            Console.WriteLine($"Файл JSON успішно збережено: {filePath}");
+            var json = JsonConvert.SerializeObject(annotatedData, Newtonsoft.Json.Formatting.Indented);
+            try
+            {
+                File.WriteAllText(filePath, json);
+                Console.WriteLine($"Файл JSON успішно збережено: {filePath}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Помилка запису у файл {filePath}: {ex.Message}");
+            }
         }
-        catch (Exception ex)
+        public static void SaveAnnotationsAsText(List<AnnotatedSentence> annotatedData, string filePath)
         {
-            Console.WriteLine($"Помилка запису у файл {filePath}: {ex.Message}");
+            using (StreamWriter writer = new StreamWriter(filePath))
+            {
+                foreach (var sentence in annotatedData)
+                {
+                    foreach (var token in sentence.Tokens)
+                    {
+                        // Кожен токен з його тегом записуємо у новий рядок
+                        writer.WriteLine($"{token.Word} {token.Tag}");
+                    }
+                    // Порожній рядок між реченнями
+                    writer.WriteLine();
+                }
+            }
+
+            Console.WriteLine($"Файл успішно збережено у форматі для навчання: {filePath}");
         }
     }
 }

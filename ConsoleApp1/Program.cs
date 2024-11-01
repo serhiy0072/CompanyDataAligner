@@ -1,120 +1,118 @@
 ﻿using OfficeOpenXml;
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Text.RegularExpressions;
-using ConsoleApp1;
 using System.Text;
-using OfficeOpenXml.Style;
-using System.Drawing;
-using System.Diagnostics;
-using System.Collections.Concurrent;
 using Newtonsoft.Json;
 
-class Program
+namespace ConsoleApp1
 {
-    static void Main()
+    class Program
     {
-        Console.OutputEncoding = Encoding.UTF8;
-        Console.InputEncoding = Encoding.UTF8;
-
-        // Визначаємо шлях до файлів
-        string directoryPath = Path.Combine(Directory.GetCurrentDirectory(), "Files");
-        string mainFilePath = Path.Combine(directoryPath, "data.xlsx");  // Файл з основною таблицею
-        string legalFormsFilePath = Path.Combine(directoryPath, "legalForms.xlsx"); // Файл з правовими формами
-        string resultFilePath = Path.Combine(directoryPath, "result.xlsx");
-        string annotationsFilePath = Path.Combine(directoryPath, "annotations.json");
-
-        // Встановлення ліцензії для використання EPPlus (потрібно з версії 5.x)
-        ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
-
-        List<Company> companies;
-        List<LegalForm> legalForms;
-
-        // Завантаження даних компаній та правових форм
-        try
+        static void Main()
         {
-            companies = DataLoader.LoadCompanies(mainFilePath);
-            legalForms = DataLoader.LoadLegalForms(legalFormsFilePath);
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Помилка завантаження даних: {ex.Message}");
-            return;
-        }
-        // Обробка компаній
-        List<Company> processedCompanies;
-        try
-        {
-            processedCompanies = DataProcessor.ProcessMainData(companies, legalForms).OrderBy(c => c.UniqueName).ToList();
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Помилка обробки даних компаній: {ex.Message}");
-            return;
+            Console.OutputEncoding = Encoding.UTF8;
+            Console.InputEncoding = Encoding.UTF8;
+
+            // Визначаємо шлях до файлів
+            string directoryPath = Path.Combine(Directory.GetCurrentDirectory(), "Files");
+            string mainFilePath = Path.Combine(directoryPath, "DataFiles\\data.xlsx");  // Файл з основною таблицею
+            string legalFormsFilePath = Path.Combine(directoryPath, "DataFiles\\legalForms.xlsx"); // Файл з правовими формами
+            string resultFilePath = Path.Combine(directoryPath, "result.xlsx");
+            string annotationsFilePath = Path.Combine(directoryPath, "annotations.json");
+            string textFilePath = Path.Combine(directoryPath, "result");
+            string textRawFilePath = Path.Combine(directoryPath, "resultRaw");
+
+            // Встановлення ліцензії для використання EPPlus (потрібно з версії 5.x)
+            ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
+
+            var companies = DataLoader.LoadCompanies(mainFilePath);
+            var legalForms = DataLoader.LoadLegalForms(legalFormsFilePath);
+
+            // Обробка компаній
+            var processedCompanieWithLegalForms = DataProcessor.ProcessCompanyDataWithLegalForms(companies, legalForms);
+            var processedCompanieWithAddressFormat = DataProcessor.ProcessCompanyDataWithAddressFormat(processedCompanieWithLegalForms).OrderBy(c => c.UniqueName).ToList();
+
+            // Запис результатів у файл Excel
+            ProcessExcelFiles(processedCompanieWithAddressFormat, resultFilePath);
+
+
+            // Запис результатів у файл txt
+            //ProcessTextAnnotations(processedCompanies, textFilePath);
+
+            // Генерація анотацій
+            //ProcessJsonAnnotations(processedCompanies, annotationsFilePath);
         }
 
-        // Встановлення ліцензії для використання EPPlus (потрібно з версії 5.x)
-        ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
-
-        // Запис результатів у файл Excel
-        ProcessExcelFiles(processedCompanies, resultFilePath);
-
-        // Генерація анотацій
-        ProcessAnnotations(processedCompanies, annotationsFilePath);
-    }
-
-    // Метод для обробки Excel файлів (читання і запис)
-    static void ProcessExcelFiles(List<Company> processedCompanies, string resultFilePath)
-    {
-        try
+        // Метод для обробки Excel файлів (читання і запис)
+        static void ProcessExcelFiles(List<Company> processedCompanies, string resultFilePath)
         {
-            // Тимчасова умова для кращої релевантності даних Фільтруємо компанії, де LegalForm.ShortName не є порожнім рядком або null
-            var filteredCompanies = processedCompanies
-                .Where(c => !string.IsNullOrEmpty(c.LegalForm?.ShortName))
-                .ToList();
-            var groupedCompanies = DataProcessor.GroupUniqueCompanies(filteredCompanies);
+            try
+            {
+                string finalFilePath = ExcelWriter.GetUniqueFilePath(resultFilePath);
+                // Тимчасова умова для кращої релевантності даних Фільтруємо компанії, де LegalForm.ShortName не є порожнім рядком або null
+                //var filteredCompanies = processedCompanies
+                //    .Where(c => !string.IsNullOrEmpty(c.LegalForm?.ShortName))
+                //    .ToList();
+                var groupedCompanies = DataProcessor.GroupUniqueCompanies(processedCompanies);
 
-            ExcelWriter.WriteToExcelFile(resultFilePath, groupedCompanies);
-            //ExcelWriter.WriteToExcelFile(resultFilePath, processedCompanies);
-            Console.WriteLine($"Результати збережено у файл: {resultFilePath}");
+                ExcelWriter.WriteToExcelFile(finalFilePath, groupedCompanies);
+                //ExcelWriter.WriteToExcelFile(resultFilePath, processedCompanies);
+                Console.WriteLine($"Результати збережено у файл: {finalFilePath}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Помилка обробки Excel-файлів: {ex.Message}");
+            }
         }
-        catch (Exception ex)
+
+        // Метод для генерації та збереження анотацій
+        static void ProcessJsonAnnotations(List<Company> processedCompanies, string annotationsFilePath)
         {
-            Console.WriteLine($"Помилка обробки Excel-файлів: {ex.Message}");
-        }
-    }
+            try
+            {
+                // Тимчасова умова для кращої релевантності даних Фільтруємо компанії, де LegalForm.ShortName не є порожнім рядком або null
+                var filteredCompanies = processedCompanies
+                    .Where(c => !string.IsNullOrEmpty(c.LegalForm?.ShortName))
+                    .ToList();
+                var groupedCompanies = DataProcessor.GroupUniqueCompanies(filteredCompanies);
 
-    // Метод для генерації та збереження анотацій
-    static void ProcessAnnotations(List<Company> processedCompanies, string annotationsFilePath)
-    {
-        try
+                var annotations = DataProcessor.GenerateAnnotations(groupedCompanies);
+                // 1. Збереження всіх анотацій у один загальний JSON файл
+                SaveFullJsonFile(annotations, annotationsFilePath);
+
+                // 2. Збереження у декілька JSON файлів, якщо розмір перевищує 10 МБ
+                //JsonSplitter.SaveJsonWithLimit(annotations, annotationsFilePath);
+                //Console.WriteLine($"Анотації збережені у файл: {annotationsFilePath}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Помилка генерації анотацій: {ex.Message}");
+            }
+        }
+
+        // Метод для генерації та збереження анотацій в текстовому форматі
+        static void ProcessTextAnnotations(List<Company> processedCompanies, string annotationsFilePath)
         {
-            // Тимчасова умова для кращої релевантності даних Фільтруємо компанії, де LegalForm.ShortName не є порожнім рядком або null
-            var filteredCompanies = processedCompanies
-                .Where(c => !string.IsNullOrEmpty(c.LegalForm?.ShortName))
-                .ToList();
-            var groupedCompanies = DataProcessor.GroupUniqueCompanies(filteredCompanies);
+            try
+            {
+                // Тимчасова умова для кращої релевантності даних Фільтруємо компанії, де LegalForm.ShortName не є порожнім рядком або null
+                //var filteredCompanies = processedCompanies
+                //    .Where(c => !string.IsNullOrEmpty(c.LegalForm?.ShortName))
+                //    .ToList();
+                var groupedCompanies = DataProcessor.GroupUniqueCompanies(processedCompanies);
 
-            var annotations = DataProcessor.GenerateAnnotations(groupedCompanies);
-            // 1. Збереження всіх анотацій у один загальний JSON файл
-            SaveFullJsonFile(annotations, annotationsFilePath);
-
-            // 2. Збереження у декілька JSON файлів, якщо розмір перевищує 10 МБ
-            //JsonSplitter.SaveJsonWithLimit(annotations, annotationsFilePath);
-            //Console.WriteLine($"Анотації збережені у файл: {annotationsFilePath}");
+                var annotations = DataProcessor.GenerateAnnotations(groupedCompanies);
+                TextDataWriter.SaveAnnotationsAsText(annotations, annotationsFilePath);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Помилка генерації анотацій: {ex.Message}");
+            }
         }
-        catch (Exception ex)
+        // Метод для збереження загального JSON-файлу
+        static void SaveFullJsonFile<T>(T data, string filePath)
         {
-            Console.WriteLine($"Помилка генерації анотацій: {ex.Message}");
+            var jsonData = JsonConvert.SerializeObject(data, Formatting.Indented);
+            File.WriteAllText(filePath, jsonData);
+            Console.WriteLine($"Повний JSON файл збережений у файл: {filePath}");
         }
-    }
-    // Метод для збереження загального JSON-файлу
-    static void SaveFullJsonFile<T>(T data, string filePath)
-    {
-        var jsonData = JsonConvert.SerializeObject(data, Formatting.Indented);
-        File.WriteAllText(filePath, jsonData);
-        Console.WriteLine($"Повний JSON файл збережений у файл: {filePath}");
     }
 }

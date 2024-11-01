@@ -1,11 +1,14 @@
-﻿public class Token
+﻿namespace ConsoleApp1
 {
-    public string Word { get; set; }  
-    public string Tag { get; set; }  
-
-    public Token(string word, string tag)
+    public class Token
     {
-        Word = word;
-        Tag = tag;
+        public string Word { get; set; }
+        public string Tag { get; set; }
+
+        public Token(string word, string tag)
+        {
+            Word = word;
+            Tag = tag;
+        }
     }
 }
